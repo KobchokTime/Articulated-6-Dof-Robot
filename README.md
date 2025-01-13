@@ -71,7 +71,7 @@ sudo docker run -it --rm \
     --privileged \
     --shm-size=4096m \
     --security-opt seccomp=unconfined \
-    -v ~/workspace/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
+    -v ~/Desktop/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
     robot-arm-image /bin/bash
 ```
 
@@ -83,6 +83,11 @@ Once the container is running, open your web browser and navigate to:
 You will see a desktop environment where you can interact with the robot simulation.
 
 ![Example Browser View](example/localhost_screen.png)
+
+Click Connect on the interface. If you see the screen as shown in the image, your setup is ready to use! 🎉🚀
+![Example Browser View](example/Done!.png)
+
+
 
 ### 5️⃣ Verify the Docker Container
 List all containers to ensure your container is running:
