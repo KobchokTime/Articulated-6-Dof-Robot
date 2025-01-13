@@ -6,36 +6,62 @@ This repository contains the steps to set up and control an articulated 6-DOF ro
 
 ## 🛠️ Prerequisites
 
-- Linux-based system (e.g., Ubuntu 22.04)
-- Docker installed
-- ROS2 Humble installed
+- **For Linux:** Ensure Docker and Docker Compose are installed.
+- **For Windows/macOS:** Install Docker Desktop (see instructions below).
 
----
-
-## 🚀 Tutorial
-
-### 1️⃣ Install Docker Compose
+### Install Docker Compose (For Linux)
 Ensure Docker Compose is installed:
 ```sh
 sudo apt-get update
 sudo apt-get install docker-compose
 ```
 
-### 2️⃣ Clone the Repository
+---
+
+## 💻 Installing Docker Desktop (Windows/macOS)
+
+### **For Windows:**
+1. Download Docker Desktop from the official website:
+   [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).
+2. Run the installer and follow the instructions.
+3. During installation:
+   - Enable the option for **WSL 2 Backend** (required for Docker to run on Windows).
+   - Restart your machine if prompted.
+4. Verify installation:
+   ```powershell
+   docker --version
+   docker-compose --version
+   ```
+
+### **For macOS:**
+1. Download Docker Desktop from the official website:
+   [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/).
+2. Open the `.dmg` file and drag the Docker icon to your Applications folder.
+3. Launch Docker Desktop from Applications and follow the setup instructions.
+4. Verify installation:
+   ```sh
+   docker --version
+   docker-compose --version
+   ```
+
+---
+
+## 🚀 Tutorial
+
+### 1️⃣ Clone the Repository
 Navigate to your workspace and clone this repository:
 ```sh
-cd ~/workspace
 git clone https://github.com/KobchokTime/Articulated-6-Dof-Robot.git -b Software-Team
 cd Articulated-6-Dof-Robot
 ```
 
-### 3️⃣ Build the Docker Image
+### 2️⃣ Build the Docker Image
 Build the Docker image using the provided `Dockerfile`:
 ```sh
 sudo docker build -t robot-arm-image .
 ```
 
-### 4️⃣ Run a Container from the Image
+### 3️⃣ Run a Container from the Image
 Run the container with the following command:
 ```sh
 sudo docker run -it --rm \
@@ -48,6 +74,15 @@ sudo docker run -it --rm \
     -v ~/workspace/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
     robot-arm-image /bin/bash
 ```
+
+### 4️⃣ Access the Container via Browser
+Once the container is running, open your web browser and navigate to:
+
+[http://localhost:6080/](http://localhost:6080/)
+
+You will see a desktop environment where you can interact with the robot simulation.
+
+![Example Browser View](example/localhost_screen.png)
 
 ### 5️⃣ Verify the Docker Container
 List all containers to ensure your container is running:
@@ -83,10 +118,6 @@ To start an existing container:
 ```sh
 sudo docker start <container_id>
 sudo docker attach <container_id>
-```
-Copy the `.bashrc` configuration (first-time setup):
-```sh
-cp ~/robot_ws/.bashrc ~/
 ```
 
 ---
@@ -135,7 +166,7 @@ sudo docker run -it --rm \
     --privileged \
     --shm-size=4096m \
     --security-opt seccomp=unconfined \
-    -v ~/workspace/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
+    -v ~/Desktop/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
     articulated_robot_image /bin/bash
 ```
 
