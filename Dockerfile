@@ -1,4 +1,3 @@
-# Use the base image that already contains ROS 2 Humble and Ubuntu 22.04
 FROM tiryoh/ros2-desktop-vnc
 
 # Install additional dependencies for robotic arm simulation
@@ -28,16 +27,23 @@ RUN apt-get update && apt-get install -y \
 # Set environment variables for the robot model
 ENV ROBOT_MODEL=articulated_arm
 
-COPY ros2_ws/.bashrc /home/ubuntu/.bashrc
-COPY ros2_ws/.text_art.sh /home/ubuntu/.text_art.sh
-
 # Preload .bashrc with ROS environment setup
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
     echo "source /home/ubuntu/robot_ws/install/setup.bash" >> ~/.bashrc
 
-# Copy robot description and simulation files (if available)
-#COPY ./robot_description /home/ubuntu/robot_description
-#COPY ./simulation /home/ubuntu/simulation
+# Clone and build dynamixel_hardware package
+RUN mkdir -p ~/ros/humble && cd ~/ros/humble && \
+    git clone https://github.com/dynamixel-community/dynamixel_hardware.git -b humble src && \
+    vcs import src < src/dynamixel_control.repos && \
+    apt-get update && apt-get upgrade -y && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && \
+    . install/setup.bash
+
+# Copy custom .bashrc and additional files (if any)
+COPY ros2_ws/.bashrc /home/ubuntu/.bashrc
+COPY ros2_ws/.text_art.sh /home/ubuntu/.text_art.sh
 
 # Set up entrypoint
 CMD ["/ros_entrypoint.sh"]
