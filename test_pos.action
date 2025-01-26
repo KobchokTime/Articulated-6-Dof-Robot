@@ -1,0 +1,16 @@
+ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory -f "{
+  trajectory: {
+    joint_names: [joint1, joint2, joint3, joint4, gripper],
+    points: [
+      { positions: [0.0, 0, 0, 0, 0], time_from_start: { sec: 2 } },
+      { positions: [3.0, 3.5, 3.5, 3.5, 0], time_from_start: { sec: 4 } },
+      { positions: [3.0, -3, -3, 0, 0], time_from_start: { sec: 7 } },
+      { positions: [0.0, 0, 0, 0, 0], time_from_start: { sec: 10 } },
+      { positions: [-3.0, 3.5, 3.5, 3.5, 0], time_from_start: { sec: 13 } },
+      { positions: [-3.0, -3, -3, 0, 0], time_from_start: { sec: 16 } },
+      { positions: [0.0, 0, 0, 0, 0], time_from_start: { sec: 22 } },
+      { positions: [0.0, -3.5, -3.5, -3.5, 0], time_from_start: { sec: 30 } },
+    ]
+  }
+}"
+
