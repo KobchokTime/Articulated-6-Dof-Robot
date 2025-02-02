@@ -14,14 +14,29 @@ class FiboX_Borot:
         self.le = 10
         self.l6 = 19
     # === Define DH Parameters ===
-    def dh_transform(self, a, alpha, d, theta):
+    def dh_transform(self, a, alpha, d, theta, theta1):
         """Compute DH Transformation Matrix."""
-        return np.array([
-            [np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
-            [np.sin(theta), np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
-            [0, np.sin(alpha), np.cos(alpha), d],
-            [0, 0, 0, 1]
-        ])
+        Tx = np.array([[1, 0, 0, a],
+                       [0, 1, 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
+        Rx = np.array([[1, 0, 0, 0],
+                       [0, np.cos(alpha), -np.sin(alpha), 0],
+                       [0, np.sin(alpha), np.cos(alpha), 0],
+                       [0, 0, 0, 1]])
+        Tz = np.array([[1, 0, 0, 0],
+                       [0, 1, 0, 0],
+                       [0, 0, 1, d],
+                       [0, 0, 0, 1]])
+        Rz = np.array([[np.cos(theta), -np.sin(theta), 0, 0],
+                       [np.sin(theta), np.cos(theta), 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
+        Rz1 = np.array([[np.cos(theta1), -np.sin(theta1), 0, 0],
+                       [np.sin(theta1), np.cos(theta1), 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
+        return Tx @ Rx @ Tz @ Rz @ Rz1
     def compute_fk(self, joint_angles):
         DH_params = [
                     [0, 0, self.l1, 0],
@@ -37,9 +52,9 @@ class FiboX_Borot:
         # print(T)
         
         for i in range(6):
-            a, alpha, d, _ = DH_params[i]
-            theta = joint_angles[i]
-            T = T @ self.dh_transform(a, alpha, d, theta)
+            a, alpha, d, theta = DH_params[i]
+            theta1 = joint_angles[i]
+            T = T @ self.dh_transform(a, alpha, d, theta, theta1)
             # print(T)
             # print("------------------")
             joints.append(np.array(T))
@@ -115,8 +130,8 @@ class FiboX_Borot:
                         sc = A_inv @ ab 
                         q2 = np.arctan2(sc[0][0], sc[1][0])
                         k1 = self.l45*np.cos(q2+q3) - self.d3*np.sin(q2+q3) + self.l2 - self.l3*np.sin(q2)
-                        gamma = np.arctan2(k1,k2)
-                        q1 = np.arctan2(xw,yw) - gamma
+                        gamma = np.arctan2(k2,k1)
+                        q1 = np.arctan2(yw,xw) - gamma
                         # q1 = np.degrees(q1) 
                         # q2 = np.degrees(q2) 
                         # q3 = np.degrees(q3) 
