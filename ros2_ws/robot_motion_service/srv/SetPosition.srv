@@ -1,0 +1,5 @@
+float64[] target_positions  # Target positions in degrees
+---
+bool success               # Success flag
+string message             # Result message
+
