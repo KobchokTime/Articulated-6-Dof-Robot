@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="FIBOTX_URDF">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.0217464635343756 0.00138320568075656 0.0375385287820507"
+        rpy="0 0 0" />
+      <mass
+        value="0.475214910120417" />
+      <inertia
+        ixx="0.00030916305785501"
+        ixy="3.12178839599637E-06"
+        ixz="-4.27632045925545E-06"
+        iyy="0.000660791470691891"
+        iyz="-1.24980218618248E-07"
+        izz="0.000863965839263336" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Link_1">
+    <inertial>
+      <origin
+        xyz="-0.00729529605850487 -0.0037215198004894 -0.0264385158663814"
+        rpy="0 0 0" />
+      <mass
+        value="0.4173195286455" />
+      <inertia
+        ixx="0.000326988319005221"
+        ixy="-3.87267898877897E-05"
+        ixz="-4.09907518756616E-05"
+        iyy="0.000566262876977719"
+        iyz="-3.93355763595074E-06"
+        izz="0.000406548541822654" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_1"
+    type="revolute">
+    <origin
+      xyz="0 0 0.167599999999993"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="Link_1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link_2">
+    <inertial>
+      <origin
+        xyz="0.0734148391002449 0.000550055796448845 0.000676795927539331"
+        rpy="0 0 0" />
+      <mass
+        value="0.300715865967004" />
+      <inertia
+        ixx="8.38797407590431E-05"
+        ixy="-5.12008239428015E-06"
+        ixz="-7.62100135117617E-06"
+        iyy="0.000669843568752184"
+        iyz="-1.76999276096406E-08"
+        izz="0.000724354374401406" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_2"
+    type="revolute">
+    <origin
+      xyz="0.037750165762156 -0.0387579022296727 0"
+      rpy="1.56436187092188 -1.5707963267949 0" />
+    <parent
+      link="Link_1" />
+    <child
+      link="Link_2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link_3">
+    <inertial>
+      <origin
+        xyz="-0.00396648531646449 0.0590719200588659 0.00244483345291613"
+        rpy="0 0 0" />
+      <mass
+        value="0.370213409963547" />
+      <inertia
+        ixx="0.000293165691227168"
+        ixy="2.37172021178879E-05"
+        ixz="3.55108766367958E-05"
+        iyy="0.000282710894904032"
+        iyz="7.15631429245582E-06"
+        izz="0.000309668472756878" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_3"
+    type="revolute">
+    <origin
+      xyz="0.177182290070085 -0.032946415586526 -0.0638999999941525"
+      rpy="0 0 0.0633485784179579" />
+    <parent
+      link="Link_2" />
+    <child
+      link="Link_3" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link_4">
+    <inertial>
+      <origin
+        xyz="-4.26272569029607E-05 0.000248172680805681 0.00318057032701269"
+        rpy="0 0 0" />
+      <mass
+        value="0.17846259133199" />
+      <inertia
+        ixx="0.000407029159333243"
+        ixy="-2.27363734327258E-07"
+        ixz="2.25007631802101E-07"
+        iyy="0.000321513772979912"
+        iyz="8.49709401029125E-06"
+        izz="0.000123512349876953" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_4"
+    type="revolute">
+    <origin
+      xyz="0 -0.0574199999864504 0"
+      rpy="-1.5707963267949 -0.0252929173109536 3.14159265358979" />
+    <parent
+      link="Link_3" />
+    <child
+      link="Link_4" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link_5">
+    <inertial>
+      <origin
+        xyz="0.00083605476942239 0.00306901565825957 0.000248172680809233"
+        rpy="0 0 0" />
+      <mass
+        value="0.17846259133199" />
+      <inertia
+        ixx="0.000389216637062064"
+        ixy="-6.8796178392893E-05"
+        ixz="2.34345512573137E-06"
+        iyy="0.000141324872148131"
+        iyz="8.17071104378902E-06"
+        izz="0.000321513772979912" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_5"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="1.5707963267949 -0.252562470748617 -3.14159265358979" />
+    <parent
+      link="Link_4" />
+    <child
+      link="Link_5" />
+    <axis
+      xyz="-0.249885954017826 -0.968275275933761 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link_6">
+    <inertial>
+      <origin
+        xyz="0.011333121416051 0.000131306165002343 -0.0186720242944176"
+        rpy="0 0 0" />
+      <mass
+        value="0.0679795825450947" />
+      <inertia
+        ixx="1.11405305118874E-05"
+        ixy="-4.74757136244241E-09"
+        ixz="2.55460935985814E-07"
+        iyy="1.94327684979586E-05"
+        iyz="3.93437824227911E-09"
+        izz="1.43441908882262E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_6.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://FIBOTX_URDF/meshes/Link_6.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint_6"
+    type="revolute">
+    <origin
+      xyz="0.0191601724195181 0.0830106916439024 0"
+      rpy="1.5707963267949 0 2.99727036695468" />
+    <parent
+      link="Link_5" />
+    <child
+      link="Link_6" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>
