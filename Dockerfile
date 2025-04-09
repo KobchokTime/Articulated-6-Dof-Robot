@@ -8,53 +8,56 @@ RUN apt-get update && apt-get install -y \
     libboost-system-dev \
     build-essential \
     libudev-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install ROS packages required for robotic arm simulation
-RUN apt-get update && apt-get install -y \
     ros-humble-moveit \
     ros-humble-moveit-resources-prbt-moveit-config \
     ros-humble-moveit-visual-tools \
     ros-humble-joint-state-publisher \
     ros-humble-robot-state-publisher \
-    ros-humble-ros-testing\
+    ros-humble-ros-testing \
     ros-humble-dynamixel-sdk \
-    && rm -rf /var/lib/apt/lists/*
-    
-# Install py_binding_tools
-RUN apt-get update && apt-get install -y ros-humble-py-binding-tools && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install additional visualization tools
-RUN apt-get update && apt-get install -y \
+    ros-humble-py-binding-tools \
     ros-humble-rviz2 \
+    ros-humble-ros2-control \
+    ros-humble-ros2-controllers \
+    ros-humble-xacro \
+    ros-humble-realsense2-description \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install pybullet ttkbootstrap paho-mqtt
 
 # Set environment variables for the robot model
 ENV ROBOT_MODEL=articulated_arm
 
+# Set working directory
+WORKDIR /home/ubuntu
+
+# Copy workspace files
 COPY ros2_ws/.bashrc /home/ubuntu/.bashrc
 COPY ros2_ws/.text_art.sh /home/ubuntu/.text_art.sh
 COPY ros2_ws /home/ubuntu/robot_ws
-# Preload .bashrc with ROS environment setup
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
-    echo "source /home/ubuntu/robot_ws/install/setup.bash" >> ~/.bashrc
-    
 
-    
-# Navigate to moveit2_tutorials and install dependencies
-WORKDIR /home/ubuntu/robot_ws/src/moveit2_tutorials
-RUN apt-get update && rosdep install -r --from-paths . --ignore-src --rosdistro $ROS_DISTRO -y
+# Setup ROS environment in bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/ubuntu/.bashrc && \
+    echo "source /home/ubuntu/robot_ws/install/setup.bash" >> /home/ubuntu/.bashrc
 
-# Build the ROS 2 workspace
+# Setup robot_ws
 WORKDIR /home/ubuntu/robot_ws
-RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
-    colcon build --symlink-install --base-path /home/ubuntu/robot_ws --parallel-workers 1
 
+# Import repositories and install dependencies
+RUN vcs import src < src/dynamixel_control.repos && \
+    . /opt/ros/humble/setup.sh && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y --skip-keys="joint_state_publisher_gui"
 
-# Copy robot description and simulation files (if available)
-#COPY ./robot_description /home/ubuntu/robot_description
-#COPY ./simulation /home/ubuntu/simulation
+# Build the workspace
+RUN . /opt/ros/humble/setup.sh && colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-# Set up entrypoint
-CMD ["/ros_entrypoint.sh"]
+# Make all .py scripts executable (after colcon build is done)
+RUN find src/robot_motion_service/scripts/ -name "*.py" -exec chmod +x {} \;
+
+# Source the workspace (optional, for interactive use)
+RUN echo "source /home/ubuntu/robot_ws/install/setup.bash" >> /home/ubuntu/.bashrc
+
+# Set entrypoint
+CMD ["bash"]
