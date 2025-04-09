@@ -71,8 +71,7 @@ sudo docker run -it --rm \
     --privileged \
     --shm-size=4096m \
     --security-opt seccomp=unconfined \
-    -v ~/Desktop/Articulated-6-Dof-Robot/ros2_ws:/home/ubuntu/robot_ws \
-    robot-arm-image /bin/bash
+    robot-arm-image
 ```
 
 ### 4️⃣ Access the Container via Browser
