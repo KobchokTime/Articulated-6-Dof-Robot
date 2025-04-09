@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from sensor_msgs.msg import Float64MultiArray  # Import Float64MultiArray
+from std_msgs.msg import Float64MultiArray 
 import paho.mqtt.client as mqtt
 
 class MQTTROS2Bridge(Node):
@@ -14,6 +16,7 @@ class MQTTROS2Bridge(Node):
         self.robot_name = "fibotx1"
         self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.mqtt_client.connect(self.broker, self.port, 60)
+#!/usr/bin/env python3
 
         # ROS 2 Publisher for velocity controller commands
         self.velocity_publisher = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
@@ -33,7 +36,27 @@ class MQTTROS2Bridge(Node):
         else:
             self.get_logger().info(f"❌ Failed to connect, return code {rc}")
 
-    def on_message(self, client, userdata, msg):
+    def on_message(client, userdata, msg):
+    	try:
+	    value = float(msg.payload.decode())  # แปลง string เป็น float
+	    joint_name = msg.topic.split("/")[-1]  # ดึงชื่อ joint เช่น "joint1"
+
+	    # ส่งค่าไปยัง ROS2
+	    msg_to_ros = Float64MultiArray()
+	    msg_to_ros.data = [0.0] * 6  # กำหนดค่าเริ่มต้นเป็น 0 ทั้ง 6 joint
+	
+    	    # หาตำแหน่ง joint (joint1 -> index 0, joint2 -> index 1, ...)
+	    joint_index = int(joint_name.replace("joint", "")) - 1
+	    msg_to_ros.data[joint_index] = value  # อัปเดตค่าของ joint ที่ต้องการ
+	
+	    publisher.publish(msg_to_ros)
+	    node.get_logger().info(f"📤 Published to ROS: {msg_to_ros.data}")
+
+        except ValueError:
+	    node.get_logger().error(f"❌ Error processing message: {msg.payload.decode()} is not a valid float")
+
+
+ """   def on_message(self, client, userdata, msg):
         topic = msg.topic
         message = msg.payload.decode()  # Assuming message is a string
 
@@ -56,7 +79,7 @@ class MQTTROS2Bridge(Node):
                 self.get_logger().error(f"❌ Invalid number of values received: {len(values)}")
         except Exception as e:
             self.get_logger().error(f"❌ Error processing message: {str(e)}")
-
+"""
 
 def main(args=None):
     rclpy.init(args=args)

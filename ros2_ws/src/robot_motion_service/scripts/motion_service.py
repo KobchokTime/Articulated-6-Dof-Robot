@@ -5,15 +5,16 @@ import math
 import time
 from rclpy.node import Node
 from trajectory_msgs.msg import JointTrajectoryPoint
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray,String
 from sensor_msgs.msg import JointState
 from rclpy.action import ActionClient
 from control_msgs.action import FollowJointTrajectory
 from robot_motion_service.srv import SetPosition
 import subprocess
 
-
 class RobotController(Node):
+    MODE_JOG = 1.0
+    MODE_VELOCITY = 0.0
     def __init__(self):
         super().__init__('robot_controller')
 
@@ -30,36 +31,85 @@ class RobotController(Node):
         self.position_service = self.create_service(SetPosition, 'set_position', self.set_position_service)
 
         # Gear reduction ratio
-        self.gear_ratio = 6.3
+        self.gear_ratios = [6.3, 6.3, 6.3, 3.75, 1.0, 1.0]
+
+        # Joint limits (degrees)
+        self.joint_limits = {
+            'joint1': (-180, 180),
+            'joint2': (-90, 90),
+            'joint3': (-90, 90),
+            'joint4': (-180, 180),
+            'joint5': (-180, 180),
+            'joint6': (-180, 180)
+        }
 
         # Store current joint positions
         self.current_joint_positions = {}
 
         # Initialize robot position at startup
-        self.initialize_robot_position()
 
         self.get_logger().info("Robot Controller initialized and ready to work!")
+        self.mode_subscriber = self.create_subscription(String, '/control_mode/state', self.mode_callback, 10)
+        self.current_mode = None
 
     def joint_state_callback(self, msg):
         """Callback function to update current joint positions."""
         self.current_joint_positions = {name: pos for name, pos in zip(msg.name, msg.position)}
 
+    def enforce_joint_limits(self, target_degrees):
+        """Ensure target positions do not exceed joint limits."""
+        joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
+        for i, joint_name in enumerate(joint_names):
+            min_limit, max_limit = self.joint_limits[joint_name]
+            target_degrees[i] = max(min(target_degrees[i], max_limit), min_limit)
+        return target_degrees
+    def send_initial_trajectory(self):
+        """Send initial trajectory to move all joints to position 0."""
+        # Wait for action server to be ready
+        self.trajectory_client.wait_for_server()
+
+        # Create trajectory goal
+        goal_msg = FollowJointTrajectory.Goal()
+        goal_msg.trajectory.joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
+
+        # Set the target positions and duration
+        point = JointTrajectoryPoint()
+        point.positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # All joints to 0
+        point.time_from_start.sec = 3  # 3 seconds to reach
+        goal_msg.trajectory.points = [point]
+
+        # Send goal to action server
+        self.get_logger().info("Sending trajectory to move joints to initial position...")
+        self.trajectory_client.send_goal_async(goal_msg)
+
+    def mode_callback(self, msg):
+        mode = msg.data[0] if msg.data else None
+        if mode is None or mode == self.current_mode:
+            return
+        
+        self.current_mode = mode
+        self.get_logger().info(mode)
+
+        if mode == 'm':  # 🔹 ถ้าเป็น 'm' ให้ส่งหุ่นยนต์กลับ Home
+            self.get_logger().info("Switching to Home Position before enabling Velocity Mode")
+            self.initialize_robot_position()  # ส่งกลับ Home ก่อน
+            time.sleep(0.5)
+            self.send_initial_trajectory()  # ส่งคำสั่งไป Home
+            time.sleep(3)
+            self.switch_controller('velocity_controller', activate=True)  # แล้วค่อยสลับไป velocity mode
+        else:
+            self.get_logger().info("Switched to Jog Mode")
+
+
+
     def initialize_robot_position(self):
         """Set all joint positions to 0 and switch to velocity controller."""
         try:
-            # Step 1: Switch to joint_trajectory_controller
             self.switch_controller('joint_trajectory_controller', activate=True)
-
-            # Step 2: Send initial trajectory using Action Interface
             self.send_initial_trajectory()
-
-            # Step 3: Wait for robot to reach position
             self.get_logger().info("Waiting for robot to reach initial position...")
-            time.sleep(3)  # Wait 3 seconds
-
-            # Step 4: Switch to velocity_controller
+            time.sleep(3)
             self.switch_controller('velocity_controller', activate=True)
-
         except Exception as e:
             self.get_logger().error(f"Initialization failed: {e}")
 
@@ -88,85 +138,42 @@ class RobotController(Node):
         subprocess.run(cmd, check=True)
         self.get_logger().info(f"Switched to {controller_name}")
 
-    def send_initial_trajectory(self):
-        """Send initial trajectory to move all joints to position 0."""
-        # Wait for action server to be ready
-        self.trajectory_client.wait_for_server()
-
-        # Create trajectory goal
-        goal_msg = FollowJointTrajectory.Goal()
-        goal_msg.trajectory.joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'gripper']
-
-        # Set the target positions and duration
-        point = JointTrajectoryPoint()
-        point.positions = [0.0, 0.0, 0.0, 0.0, 0.0]  # All joints to 0
-        point.time_from_start.sec = 3  # 3 seconds to reach
-        goal_msg.trajectory.points = [point]
-
-        # Send goal to action server
-        self.get_logger().info("Sending trajectory to move joints to initial position...")
-        self.trajectory_client.send_goal_async(goal_msg)
-
-    def shortest_path(self, current, target):
-        """Find the shortest path between two angles considering -180 to 180 range"""
-        delta = target - current
-        if delta > 180:
-            return target - 360  # Move counterclockwise
-        elif delta < -180:
-            return target + 360  # Move clockwise
-        return target
-
     def set_position_service(self, request, response):
         """Handle custom service to set target positions."""
         try:
-            # Target positions from service (degrees)
-            target_degrees = request.target_positions
-            target_radians = [math.radians(deg) for deg in target_degrees]  # Convert to radians
+            target_degrees = self.enforce_joint_limits(request.target_positions)
+            target_radians = [math.radians(deg) for deg in target_degrees]
 
-            # Ensure joint states are available
             if not self.current_joint_positions:
                 self.get_logger().error("No joint state data available yet!")
                 response.success = False
                 response.message = "No joint state data available"
                 return response
 
-            # Movement time (seconds)
             move_time = 5.0
-
-            # Compute required velocities
             velocity_radians_per_sec = []
-            joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'gripper']
+            joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
 
             for i, joint_name in enumerate(joint_names):
                 if joint_name in self.current_joint_positions:
-                    # 🔹 แปลงค่าที่อ่านจาก `/joint_states` กลับเป็นค่าที่แท้จริงก่อนคำนวณ
                     current_pos_raw = self.current_joint_positions[joint_name]
-                    current_pos = math.degrees(current_pos_raw / self.gear_ratio)  # แปลงค่าจริงจากมอเตอร์เป็นองศา
-                
-                    # 🔹 คำนวณเป้าหมายโดยใช้ `shortest_path()`
-                    adjusted_target = self.shortest_path(current_pos, target_degrees[i])
-                    target_radians[i] = math.radians(adjusted_target)  # แปลงกลับเป็น radian
-                
-                    # คำนวณความเร็วที่ต้องใช้
-                    velocity = ((target_radians[i] - math.radians(current_pos)) / move_time) * self.gear_ratio
+                    current_pos = math.degrees(current_pos_raw / self.gear_ratios[i])
+                    velocity = ((target_radians[i] - math.radians(current_pos)) / move_time) * self.gear_ratios[i]
                     velocity_radians_per_sec.append(velocity)
                 else:
                     velocity_radians_per_sec.append(0.0)
 
-            # Publish velocity commands
             self.publish_velocity(velocity_radians_per_sec)
 
-            # Continuously check until the joints reach the target
             start_time = time.time()
             while time.time() - start_time < move_time:
                 if all(
-                    abs((math.degrees(self.current_joint_positions[joint_name] / self.gear_ratio)) - target_degrees[i]) < 2.0
+                    abs((math.degrees(self.current_joint_positions[joint_name] / self.gear_ratios[i])) - target_degrees[i]) < 2.0
                     for i, joint_name in enumerate(joint_names) if joint_name in self.current_joint_positions
                 ):
                     break
-                time.sleep(0.1)  # Check every 100ms
+                time.sleep(0.1)
 
-            # Stop the robot
             self.publish_velocity([0.0] * len(joint_names))
 
             response.success = True
@@ -192,7 +199,5 @@ def main():
     node.destroy_node()
     rclpy.shutdown()
 
-
 if __name__ == '__main__':
     main()
-

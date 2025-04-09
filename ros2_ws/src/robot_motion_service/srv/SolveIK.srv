@@ -1,0 +1,10 @@
+float64 x        # X coordinate
+float64 y        # Y coordinate
+float64 z        # Z coordinate
+float64 rx       # Roll angle
+float64 ry       # Pitch angle
+float64 rz       # Yaw angle
+---
+bool success              # Success flag
+string message            # Result message
+float64[] joint_angles    # Result joint angles

@@ -15,6 +15,7 @@ find_package(rosidl_default_generators REQUIRED)
 # Add custom service definition
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetPosition.srv"
+  "srv/SolveIK.srv"
   DEPENDENCIES geometry_msgs std_msgs
 )
 
@@ -24,8 +25,18 @@ ament_export_dependencies(rosidl_default_runtime)
 # Install Python scripts
 install(PROGRAMS
   scripts/motion_service.py
+  scripts/Robot_Ui.py
+  scripts/kinematic_fibox.py
+  scripts/kinematics_service.py
+  scripts/mqtt_sub_service.py
   DESTINATION lib/${PROJECT_NAME}
 )
+# Install launch files
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 
 # Enable linting if testing is enabled
 if(BUILD_TESTING)
@@ -37,4 +48,3 @@ endif()
 
 # Finalize package
 ament_package()
-
