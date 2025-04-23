@@ -1,16 +1,16 @@
 import pybullet as p
 import pybullet_data
 import math
-# from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory
 import os
 
 class FiboX_Borot:
     def __init__(self):
-        # urdf_path = os.path.join(get_package_share_directory('robot_motion_service'),'scripts', 'urdf', 'Assem_For_URDF_4.urdf')
+        urdf_path = os.path.join(get_package_share_directory('robot_motion_service'),'launch','Assem_For_URDF_4' ,'urdf', 'Assem_For_URDF_4.urdf')
 
         
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        urdf_path = os.path.join(script_dir, "Assem_For_URDF_4", "urdf", "Assem_For_URDF_4.urdf")
+        #script_dir = os.path.dirname(os.path.abspath(__file__))
+        #urdf_path = os.path.join(script_dir, "Assem_For_URDF_4", "urdf", "Assem_For_URDF_4.urdf")
 
         # เชื่อมต่อ pybullet
         p.connect(p.DIRECT)

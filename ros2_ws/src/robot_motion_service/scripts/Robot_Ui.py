@@ -59,8 +59,8 @@ class RobotControlUI:
         self.publisher = self.ros_node.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
         self.control_mode_publisher = self.ros_node.create_publisher(String, '/control_mode/state', 10)  # New publisher
 
-        self.root.geometry("800x600")
-        self.root.attributes('-fullscreen', True)
+        self.root.geometry("1200x800")
+        self.root.attributes('-fullscreen', False)
 
         # Initialize kinematics
         self.init_kinematics()
