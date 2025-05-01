@@ -121,3 +121,5 @@ source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 export LDS_MODEL=LDS-01
 sudo chmod 777 /dev/ttyUSB0
 sudo chmod 777 /dev/ttyACM0
+
+ros2 launch robot_motion_service launch_robot_services.py
