@@ -122,4 +122,5 @@ export LDS_MODEL=LDS-01
 sudo chmod 777 /dev/ttyUSB0
 sudo chmod 777 /dev/ttyACM0
 
+source ~/robot_ws/install/setup.bash
 ros2 launch robot_motion_service launch_robot_services.py
