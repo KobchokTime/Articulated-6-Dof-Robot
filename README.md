@@ -134,6 +134,74 @@ sudo docker attach <container_id>
 
 ---
 
+## 🔧 Systemd Service Setup
+
+To automatically start the robot arm Docker container on system boot, you can create a systemd service:
+
+### Create the Service File
+```sh
+sudo nano /etc/systemd/system/robot-arm-docker.service
+```
+
+### Service Configuration
+Add the following content to the service file:
+
+```ini
+[Unit]
+Description=Run Robot Arm Docker Container
+After=network.target docker.service dev-ttyUSB0.device
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStartPre=-/usr/bin/docker rm -f robot-arm-container
+
+ExecStart=/usr/bin/docker run \
+  --name robot-arm-container \
+  -p 6080:80 \
+  --device=/dev/ttyUSB0 \
+  --device=/dev/ttyACM0 \
+  --privileged \
+  --shm-size=4096m \
+  --security-opt seccomp=unconfined \
+  robot-arm-image /bin/bash -c "source /opt/ros/humble/setup.bash && source /home/ubuntu/robot_ws/install/setup.bash && ros2 launch robot_motion_service launch_robot_services.py"
+
+ExecStop=/usr/bin/docker stop robot-arm-container
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Enable and Start the Service
+```sh
+# Reload systemd to recognize the new service
+sudo systemctl daemon-reload
+
+# Enable the service to start on boot
+sudo systemctl enable robot-arm-docker.service
+
+# Start the service immediately
+sudo systemctl start robot-arm-docker.service
+
+# Check service status
+sudo systemctl status robot-arm-docker.service
+```
+
+### Service Management Commands
+```sh
+# Stop the service
+sudo systemctl stop robot-arm-docker.service
+
+# Restart the service
+sudo systemctl restart robot-arm-docker.service
+
+# View service logs
+sudo journalctl -u robot-arm-docker.service -f
+```
+
+---
+
 ## 📦 Deploy Code
 
 ### Save a Docker Container to a File
