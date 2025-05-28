@@ -67,57 +67,25 @@ class RobotControlUI:
         
         # Create the UI
         self.create_ui()
-        
     def init_kinematics(self):
-        """Initialize the kinematics module"""
+        """Initialize kinematics - minimal version"""
         try:
-            # Get the absolute path to the kinematics.py file
             import os
             import sys
-            
-            # Print current directory for debugging
-            self.ros_node.get_logger().info(f"Current directory: {os.getcwd()}")
-            
-            # Get the directory of the current script
+        
+            # เพิ่ม path
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            self.ros_node.get_logger().info(f"Script directory: {script_dir}")
-            
-            # Add script directory to Python path
             if script_dir not in sys.path:
                 sys.path.append(script_dir)
-                
-            # Try to import the kinematics module
-            kinematics_path = os.path.join(script_dir, "kinematics.py")
-            if os.path.exists(kinematics_path):
-                self.ros_node.get_logger().info(f"Kinematics file exists at: {kinematics_path}")
-                
-                # Try direct import
-                try:
-                    from kinematics import FiboX_Borot
-                    self.kinematics = FiboX_Borot()
-                    self.ros_node.get_logger().info("Successfully imported kinematics module")
-                    return
-                except ImportError as e:
-                    self.ros_node.get_logger().error(f"Direct import failed: {e}")
-                
-                # Try importing using importlib
-                try:
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location("kinematics", kinematics_path)
-                    kinematics_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(kinematics_module)
-                    self.kinematics = kinematics_module.FiboX_Borot()
-                    self.ros_node.get_logger().info("Successfully imported kinematics module using importlib")
-                    return
-                except Exception as e:
-                    self.ros_node.get_logger().error(f"Importlib import failed: {e}")
-            else:
-                self.ros_node.get_logger().error(f"Kinematics file not found at: {kinematics_path}")
-                
-            self.ros_node.get_logger().error("Failed to initialize kinematics module")
+        
+            # Import และใช้งาน
+            from kinematic_fibox import FiboX_Borot
+            self.kinematics = FiboX_Borot()
+            self.ros_node.get_logger().info("✅ Kinematics loaded successfully!")
+        
         except Exception as e:
-            self.ros_node.get_logger().error(f"Error initializing kinematics: {e}")
-    
+            self.ros_node.get_logger().error(f"❌ Failed to load kinematics: {e}")
+            self.kinematics = None     
     def create_ui(self):
         self.switch_controllers()
         for widget in self.root.winfo_children():
@@ -483,7 +451,6 @@ class RobotControlUI:
             # Create a frame for each joint value pair
             joint_frame = ttk.Frame(joint_values_grid)
             joint_frame.grid(row=row, column=col, padx=10, pady=5)
-            
             # Add joint name and value
             ttk.Label(joint_frame, text=f"{joint}:", 
                      font=("Arial", 16, "bold")).pack(side="left")
@@ -564,10 +531,10 @@ class RobotControlUI:
             self.ros_node.get_logger().info("MQTT Subscription: ENABLED")
 
             # ✅ ล้างค่าช่องกรอกทั้งหมด
-            self.clear_all_entries()
+            #self.clear_all_entries()
 
             # ✅ ปิดปุ่มทั้งหมดเมื่อเปิด MQTT
-            self.toggle_all_buttons("disable")
+            #self.toggle_all_buttons("disable")
 
         else:
             self.mqtt_toggle_label.config(text="MQTT: OFF")
@@ -576,7 +543,7 @@ class RobotControlUI:
             self.ros_node.get_logger().info("MQTT Subscription: DISABLED")
 
             # ✅ เปิดปุ่มทั้งหมดเมื่อปิด MQTT
-            self.toggle_all_buttons("enable")
+            #self.toggle_all_buttons("enable")
     def clear_all_entries(self):
         """ล้างค่าช่องกรอกทั้งหมด และอัปเดต UI"""
         self.ros_node.get_logger().info("🔄 Clearing all joint and Cartesian entries")
@@ -643,53 +610,81 @@ class RobotControlUI:
             data = msg.payload.decode()
             topic = msg.topic
 
+            self.ros_node.get_logger().info(f"[MQTT] Received message on topic: {topic}")
+            self.ros_node.get_logger().info(f"[MQTT] Raw payload: {data}")
+
             self.mqtt_data_label.config(text=f"MQTT Data: {topic} -> {data}")
-            # self.toggle_all_buttons("enable")
 
             if topic.endswith("/pose"):
-                x, y, z, roll, pitch, yaw = map(float, data.split(","))
+                self.ros_node.get_logger().info("[STEP 1] Pose topic matched")
 
-                x_mm, y_mm, z_mm = x , y , z 
+                try:
+                    x, y, z, roll, pitch, yaw = map(float, data.split(","))
+                    self.ros_node.get_logger().info(f"[STEP 2] Parsed pose: X={x}, Y={y}, Z={z}, Roll={roll}, Pitch={pitch}, Yaw={yaw}")
+                except Exception as e:
+                    self.ros_node.get_logger().error(f"[ERROR] Failed to parse pose: {e}")
+                    return
+
+                x_mm, y_mm, z_mm = x, y, z
                 roll_rad, pitch_rad, yaw_rad = math.radians(roll), math.radians(pitch), math.radians(yaw)
 
-                self.ros_node.get_logger().info(f"📥 Received Pose: X={x_mm}mm, Y={y_mm}mm, Z={z_mm}mm, Roll={roll}°, Pitch={pitch}°, Yaw={yaw}°")
+                self.ros_node.get_logger().info("[STEP 3] Converted to radians")
+                
+                if self.kinematics is None:
+                    self.ros_node.get_logger().error("[ERROR] self.kinematics is None! IK module not initialized.")
+                    return
 
-                # 🔄 ใช้ IK คำนวณ joint angles
-                if self.kinematics:
-                    joint_angles = self.kinematics.compute_ink([x/1000, y/1000, z/1000], [roll_rad, pitch_rad, yaw_rad])
-                    if joint_angles:
-                        joint_angles_deg = [math.degrees(angle) for angle in joint_angles]
-                        self.ros_node.get_logger().info(f"✅ IK Computed Joint Angles: {joint_angles_deg}")
-                        self.update_joint_angles(joint_angles_deg)
-                        self.root.update_idletasks()
-                        self.send_joint_angles()
-                        
+                self.ros_node.get_logger().info("[STEP 4] Calling compute_ink()")
 
-                # ✅ อัปเดต UI
+                joint_angles = self.kinematics.compute_ink(
+                    [x / 1000, y / 1000, z / 1000],
+                    [roll_rad, pitch_rad, yaw_rad]
+                )
+
+                if joint_angles:
+                    self.ros_node.get_logger().info(f"[STEP 5] IK result: {joint_angles}")
+                    joint_angles_deg = [math.degrees(angle) for angle in joint_angles]
+                    self.ros_node.get_logger().info(f"[STEP 6] Joint Angles (deg): {joint_angles_deg}")
+                    self.update_joint_angles(joint_angles_deg)
+                    self.root.update_idletasks()
+                    self.send_joint_angles()
+                else:
+                    self.ros_node.get_logger().error("[ERROR] IK returned None")
+
+                # ✅ Update UI
                 self.update_cartesian_values(x_mm, y_mm, z_mm, roll, pitch, yaw)
 
             elif topic.endswith("/angles"):
-                joint_angles_deg = list(map(float, data.split(",")))
-                joint_angles_rad = [math.radians(angle) for angle in joint_angles_deg]
-                self.ros_node.get_logger().info(f"📥 Received Joint Angles: {joint_angles_deg}")
-                
+                self.ros_node.get_logger().info("[STEP A1] Angles topic matched")
 
-                # 🔄 ใช้ FK คำนวณตำแหน่ง
+                try:
+                    joint_angles_deg = list(map(float, data.split(",")))
+                    joint_angles_rad = [math.radians(angle) for angle in joint_angles_deg]
+                    self.ros_node.get_logger().info(f"[STEP A2] Parsed angles (deg): {joint_angles_deg}")
+                except Exception as e:
+                    self.ros_node.get_logger().error(f"[ERROR] Failed to parse joint angles: {e}")
+                    return
+
+            # 🔄 Forward Kinematics
                 if self.kinematics:
-                    x, y, z, roll, pitch, yaw = self.kinematics.compute_fk(joint_angles_rad)
-                    x_mm, y_mm, z_mm = x * 1000, y * 1000, z * 1000
-                    roll_deg, pitch_deg, yaw_deg = math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
+                    try:
+                        x, y, z, roll, pitch, yaw = self.kinematics.compute_fk(joint_angles_rad)
+                        x_mm, y_mm, z_mm = x * 1000, y * 1000, z * 1000
+                        roll_deg, pitch_deg, yaw_deg = math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
+    
+                        self.ros_node.get_logger().info(f"[STEP A3] FK Computed Pose: X={x_mm}mm, Y={y_mm}mm, Z={z_mm}mm, Roll={roll_deg}°, Pitch={pitch_deg}°, Yaw={yaw_deg}°")
+                        self.update_cartesian_values(x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg)
+                    except Exception as e:
+                        self.ros_node.get_logger().error(f"[ERROR] FK computation failed: {e}")
 
-                    self.ros_node.get_logger().info(f"✅ FK Computed Pose: X={x_mm}mm, Y={y_mm}mm, Z={z_mm}mm, Roll={roll_deg}°, Pitch={pitch_deg}°, Yaw={yaw_deg}°")
-                    self.update_cartesian_values(x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg)
-
-                self.update_joint_angles(joint_angles_deg, update_ui=True)
+                self.update_joint_angles(joint_angles_deg, update_ui=True)  
                 self.root.update_idletasks()
                 self.send_joint_angles()
-                
 
         except Exception as e:
-            self.ros_node.get_logger().error(f"Error processing MQTT message: {e}")
+            self.ros_node.get_logger().error(f"[EXCEPTION] on_mqtt_message failed: {e}")
+            import traceback
+            self.ros_node.get_logger().error(traceback.format_exc())
 
     def update_joint_angles(self, angles, update_ui=True):
         """อัปเดตค่า Joint Angle UI และส่งออกไปทันที"""
@@ -796,22 +791,21 @@ class RobotControlUI:
         # ✅ เรียกฟังก์ชันให้หุ่นยนต์กลับ Home
         # sequence = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
         # self.execute_sequence(sequence)
-        
-    # def execute_sequence(self, sequence):
-    #     if not self.client.wait_for_service(timeout_sec=1.0):
-    #         self.ros_node.get_logger().error("Service /set_position is not available.")
-    #         return
+    def execute_sequence(self, sequence):
+         if not self.client.wait_for_service(timeout_sec=1.0):
+             self.ros_node.get_logger().error("Service /set_position is not available.")
+             return
 
-    #     for angles in sequence:
-    #         request = SetPosition.Request()
-    #         request.target_positions = list(map(float, angles))  # Ensure all values are float
-    #         future = self.client.call_async(request)
-    #         future.add_done_callback(self.handle_service_response)
-    #         self.ros_node.get_logger().info(f"Sent Sequence: {angles}")
-    #         rclpy.spin_until_future_complete(self.ros_node, future)
+         for angles in sequence:
+             request = SetPosition.Request()
+             request.target_positions = list(map(float, angles))  # Ensure all values are float
+             future = self.client.call_async(request)
+             future.add_done_callback(self.handle_service_response)
+             self.ros_node.get_logger().info(f"Sent Sequence: {angles}")
+             rclpy.spin_until_future_complete(self.ros_node, future)
             
-    #         # Add delay between actions
-    #         self.root.after(2000)
+             # Add delay between actions
+             self.root.after(2000)
  
     def set_mode(self, mode):
         if mode == self.control_mode:
