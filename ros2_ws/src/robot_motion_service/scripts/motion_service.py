@@ -165,10 +165,10 @@ class RobotController(Node):
             # Calculate dynamic move_time: minimum 0.1s for 1 degree, scale linearly
             # Formula: time = max(0.1, max_angle_diff * 0.1)
             # This gives 0.1s for 1 degree, 1.0s for 10 degrees, etc.
-            move_time = max(0.1, max_angle_diff * 0.1)
+            move_time = max(0.05, max_angle_diff * 0.05)
             
             # Cap maximum time to prevent extremely slow movements
-            move_time = min(move_time, 10.0)
+            move_time = min(move_time, 5.0)
             
             self.get_logger().info(f"Max angle difference: {max_angle_diff:.2f} degrees, Move time: {move_time:.2f} seconds")
             
