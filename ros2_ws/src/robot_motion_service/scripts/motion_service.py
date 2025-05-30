@@ -150,10 +150,30 @@ class RobotController(Node):
                 response.message = "No joint state data available"
                 return response
 
-            move_time = 5.0
-            velocity_radians_per_sec = []
+            # Calculate dynamic move_time based on maximum joint movement
             joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
-
+            max_angle_diff = 0.0
+            
+            # Find the maximum angle difference among all joints
+            for i, joint_name in enumerate(joint_names):
+                if joint_name in self.current_joint_positions:
+                    current_pos_raw = self.current_joint_positions[joint_name]
+                    current_pos = math.degrees(current_pos_raw / self.gear_ratios[i])
+                    angle_diff = abs(target_degrees[i] - current_pos)
+                    max_angle_diff = max(max_angle_diff, angle_diff)
+            
+            # Calculate dynamic move_time: minimum 0.1s for 1 degree, scale linearly
+            # Formula: time = max(0.1, max_angle_diff * 0.1)
+            # This gives 0.1s for 1 degree, 1.0s for 10 degrees, etc.
+            move_time = max(0.1, max_angle_diff * 0.1)
+            
+            # Cap maximum time to prevent extremely slow movements
+            move_time = min(move_time, 10.0)
+            
+            self.get_logger().info(f"Max angle difference: {max_angle_diff:.2f} degrees, Move time: {move_time:.2f} seconds")
+            
+            velocity_radians_per_sec = []
+            
             for i, joint_name in enumerate(joint_names):
                 if joint_name in self.current_joint_positions:
                     current_pos_raw = self.current_joint_positions[joint_name]
