@@ -11,8 +11,8 @@ import paho.mqtt.client as mqtt
 
 
 # MQTT Broker details
-BROKER = "test.mosquitto.org"
-PORT = 1883
+# BROKER = "test.mosquitto.org"
+# PORT = 1883
 
 class RobotControlUI:
     def switch_controllers(self):
@@ -37,7 +37,7 @@ class RobotControlUI:
         self.mqtt_toggle_state = False  # MQTT toggle state
         self.current_mode = None  # Default mode (None)
         self.mqtt_client = None  # MQTT Client instance
-        self.robot_name = "fibotx1"  # Change this if needed
+        self.robot_name = "fibotx3"  # Change this if needed
         self.button_styles = {}  # เก็บสีเดิมของปุ่ม
 
         self.cartesian_entries = {}
@@ -67,22 +67,89 @@ class RobotControlUI:
         
         # Create the UI
         self.create_ui()
+    def get_mqtt_config(self):
+        """ดึงค่า MQTT Configuration จาก UI"""
+        try:
+            broker = self.broker_entry.get().strip()
+            port = int(self.port_entry.get().strip())
+            
+            # ตรวจสอบค่าว่าง
+            if not broker:
+                broker = "test.mosquitto.org"
+            if port <= 0 or port > 65535:
+                port = 1883
+                
+            return broker, port
+        except ValueError:
+            # ถ้า port ไม่ใช่ตัวเลข ใช้ค่าเริ่มต้น
+            self.ros_node.get_logger().warning("Invalid port number, using default 1883")
+            return self.broker_entry.get().strip() or "test.mosquitto.org", 1883
+
+    def test_mqtt_connection(self):
+        """ทดสอบการเชื่อมต่อ MQTT Broker"""
+        broker, port = self.get_mqtt_config()
+        
+        self.connection_status_label.config(text="Testing connection...", bootstyle="warning")
+        self.root.update()
+        
+        try:
+            # สร้าง MQTT client ชั่วคราวเพื่อทดสอบ
+            test_client = mqtt.Client()
+            test_client.on_connect = self.on_test_connect
+            test_client.on_disconnect = self.on_test_disconnect
+            
+            # ตั้งค่า timeout
+            test_client.connect(broker, port, 10)
+            test_client.loop_start()
+            
+            # รอผลลัพธ์ 3 วินาที
+            self.root.after(3000, lambda: self.finish_connection_test(test_client))
+            
+            self.ros_node.get_logger().info(f"Testing connection to {broker}:{port}")
+            
+        except Exception as e:
+            self.connection_status_label.config(
+                text=f"Connection Failed: {str(e)[:30]}...", 
+                bootstyle="danger"
+            )
+            self.ros_node.get_logger().error(f"MQTT Test Connection Failed: {e}")
+
+    def on_test_connect(self, client, userdata, flags, rc):
+        """Callback สำหรับการทดสอบการเชื่อมต่อ"""
+        if rc == 0:
+            self.connection_status_label.config(text="✅ Connection Successful!", bootstyle="success")
+            self.ros_node.get_logger().info("MQTT Test Connection: SUCCESS")
+        else:
+            self.connection_status_label.config(text=f"❌ Connection Failed (Code: {rc})", bootstyle="danger")
+            self.ros_node.get_logger().error(f"MQTT Test Connection Failed with code: {rc}")
+
+    def on_test_disconnect(self, client, userdata, rc):
+        """Callback เมื่อการทดสอบเสร็จสิ้น"""
+        self.ros_node.get_logger().info("MQTT Test Connection: Disconnected")
+
+    def finish_connection_test(self, test_client):
+        """จบการทดสอบการเชื่อมต่อ"""
+        try:
+            test_client.loop_stop()
+            test_client.disconnect()
+        except:
+            pass
     def init_kinematics(self):
         """Initialize kinematics - minimal version"""
         try:
             import os
             import sys
-        
+            
             # เพิ่ม path
             script_dir = os.path.dirname(os.path.abspath(__file__))
             if script_dir not in sys.path:
                 sys.path.append(script_dir)
-        
+            
             # Import และใช้งาน
             from kinematic_fibox import FiboX_Borot
             self.kinematics = FiboX_Borot()
             self.ros_node.get_logger().info("✅ Kinematics loaded successfully!")
-        
+            
         except Exception as e:
             self.ros_node.get_logger().error(f"❌ Failed to load kinematics: {e}")
             self.kinematics = None     
@@ -351,6 +418,7 @@ class RobotControlUI:
         self.next_button = ttk.Button(nav_frame, text="Next ▶", bootstyle="primary", 
                                      width=40, padding=30, command=self.next_joint)
         self.next_button.pack(side="left", padx=15)
+        
         # สร้าง Frame สำหรับแสดงข้อมูล MQTT
         self.mqtt_data_frame = ttk.Frame(self.root)
         self.mqtt_data_frame.pack(pady=10)
@@ -385,11 +453,56 @@ class RobotControlUI:
             command=self.execute_home
         )
         self.btn_home.pack(side="left", padx=15)
+        
         ######################################################
-            
-        # Frame สำหรับ MQTT Toggle
-        mqtt_toggle_frame = ttk.Frame(self.root)
-        mqtt_toggle_frame.pack(side="bottom", pady=10)
+        # MQTT Configuration และ Toggle Frame
+        mqtt_config_frame = ttk.Frame(self.root)
+        mqtt_config_frame.pack(side="bottom", pady=10)
+
+        # บรรทัดที่ 1: Broker, Port, Test Button และ Status Result
+        broker_config_frame = ttk.Frame(mqtt_config_frame)
+        broker_config_frame.pack(pady=5)
+
+        # Label สำหรับ Broker
+        ttk.Label(broker_config_frame, text="MQTT Broker:", font=("Arial", 16)).pack(side="left", padx=5)
+
+        # Entry สำหรับ MQTT Broker
+        self.broker_entry = ttk.Entry(broker_config_frame, width=25, font=("Arial", 14))
+        self.broker_entry.pack(side="left", padx=5)
+        self.broker_entry.insert(0, "test.mosquitto.org")
+
+        # Label สำหรับ Port
+        ttk.Label(broker_config_frame, text="Port:", font=("Arial", 16)).pack(side="left", padx=(20, 5))
+
+        # Entry สำหรับ Port
+        self.port_entry = ttk.Entry(broker_config_frame, width=8, font=("Arial", 14))
+        self.port_entry.pack(side="left", padx=5)
+        self.port_entry.insert(0, "1883")
+
+        # ปุ่มทดสอบการเชื่อมต่อ
+        self.test_connection_button = ttk.Button(
+            broker_config_frame,
+            text="Test Connection",
+            bootstyle="info",
+            width=15,
+            padding=10,
+            command=self.test_mqtt_connection
+        )
+        self.test_connection_button.pack(side="left", padx=10)
+
+        # ✅ แสดงสถานะการเชื่อมต่อ ข้างๆ ปุ่ม Test
+        self.connection_status_label = ttk.Label(
+            broker_config_frame, 
+            text="Status: Not Connected", 
+            font=("Arial", 12),
+            bootstyle="secondary",
+            width=25  # กำหนดความกว้างคงที่
+        )
+        self.connection_status_label.pack(side="left", padx=10)
+
+        # บรรทัดที่ 2: MQTT Toggle
+        mqtt_toggle_frame = ttk.Frame(mqtt_config_frame)
+        mqtt_toggle_frame.pack(pady=5)
 
         self.mqtt_toggle_label = ttk.Label(mqtt_toggle_frame, text="MQTT: OFF", font=("Arial", 24))
         self.mqtt_toggle_label.pack(side="left", padx=20)
@@ -403,16 +516,12 @@ class RobotControlUI:
             command=self.toggle_mqtt
         )
         self.mqtt_toggle_button.pack(side="left", padx=10)
-
-
         ###################################################
-
 
         self.cartesian_data_frame = ttk.Frame(self.root)
 
         # กำหนดตำแหน่งให้อยู่ขวาล่างแต่ไม่ตกขอบ
         self.cartesian_data_frame.place(relx=0.98, rely=0.98, anchor="se")
-
 
         # Title Label
         ttk.Label(self.cartesian_data_frame, text="Cartesian Data", font=("Arial", 18, "bold")).pack(anchor="w")
@@ -433,7 +542,6 @@ class RobotControlUI:
 
             self.cartesian_labels[param] = label
 
-        
         # Display saved values in a more compact way
         self.values_display_frame = ttk.Frame(main_frame)
         self.values_display_frame.pack(pady=10, fill="x")
@@ -462,7 +570,6 @@ class RobotControlUI:
             self.joint_value_labels[joint] = value_label
         
         self.update_values_display()
-    #####################################################
     def update_cartesian_values(self, x, y, z, roll, pitch, yaw):
         """อัปเดตค่า Cartesian Control UI"""
         
@@ -518,32 +625,6 @@ class RobotControlUI:
         self.root.update()
 
 
-
-
-    def toggle_mqtt(self):
-        """เปิด-ปิด MQTT subscription และล้างค่าช่องกรอกเมื่อเปิด MQTT"""
-        self.mqtt_toggle_state = not self.mqtt_toggle_state  # Toggle สถานะ ON/OFF
-
-        if self.mqtt_toggle_state:
-            self.mqtt_toggle_label.config(text="MQTT: ON")
-            self.mqtt_toggle_button.config(text="Disable MQTT", bootstyle="danger")
-            self.start_mqtt_subscription()
-            self.ros_node.get_logger().info("MQTT Subscription: ENABLED")
-
-            # ✅ ล้างค่าช่องกรอกทั้งหมด
-            #self.clear_all_entries()
-
-            # ✅ ปิดปุ่มทั้งหมดเมื่อเปิด MQTT
-            #self.toggle_all_buttons("disable")
-
-        else:
-            self.mqtt_toggle_label.config(text="MQTT: OFF")
-            self.mqtt_toggle_button.config(text="Enable MQTT", bootstyle="success")
-            self.stop_mqtt_subscription()
-            self.ros_node.get_logger().info("MQTT Subscription: DISABLED")
-
-            # ✅ เปิดปุ่มทั้งหมดเมื่อปิด MQTT
-            #self.toggle_all_buttons("enable")
     def clear_all_entries(self):
         """ล้างค่าช่องกรอกทั้งหมด และอัปเดต UI"""
         self.ros_node.get_logger().info("🔄 Clearing all joint and Cartesian entries")
@@ -572,120 +653,222 @@ class RobotControlUI:
 
         # ✅ รีเฟรช UI
         self.root.update_idletasks()
+    def test_mqtt_connection(self):
+        """ทดสอบการเชื่อมต่อ MQTT Broker"""
+        broker, port = self.get_mqtt_config()
+        
+        self.connection_status_label.config(text="Testing...", bootstyle="warning")
+        self.root.update()
+        
+        try:
+            # ✅ ใช้ MQTT Client v2 พร้อม fallback
+            try:
+                test_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+                self.ros_node.get_logger().info("Testing with MQTT Client v2")
+            except (AttributeError, NameError):
+                # Fallback สำหรับ MQTT version เก่า
+                test_client = mqtt.Client()
+                self.ros_node.get_logger().info("Testing with MQTT Client v1 (fallback)")
+                
+            test_client.on_connect = self.on_test_connect
+            test_client.on_disconnect = self.on_test_disconnect
+            
+            test_client.connect(broker, port, 10)
+            test_client.loop_start()
+            
+            # รอผลลัพธ์ 3 วินาที
+            self.root.after(3000, lambda: self.finish_connection_test(test_client))
+            
+            self.ros_node.get_logger().info(f"Testing connection to {broker}:{port}")
+            
+        except Exception as e:
+            self.connection_status_label.config(
+                text=f"Failed: {str(e)[:15]}...", 
+                bootstyle="danger"
+            )
+            self.ros_node.get_logger().error(f"MQTT Test Connection Failed: {e}")
 
+    #def on_mqtt_connect(self, client, userdata, flags, rc, properties=None):
+    def on_mqtt_connect(self, client, userdata, flags, rc, *args):
+        """Callback เมื่อเชื่อมต่อ MQTT สำเร็จ (MQTT v2 compatible)"""
+        if rc == 0:
+            self.connection_status_label.config(
+                text="✅ MQTT Connected!", 
+                bootstyle="success"
+            )
+            self.ros_node.get_logger().info("MQTT Connected successfully")
+        else:
+            self.connection_status_label.config(
+                text=f"❌ MQTT Failed (Code: {rc})", 
+                bootstyle="danger"
+            )
+            self.ros_node.get_logger().error(f"MQTT Connection failed with code: {rc}")
 
+    #def on_mqtt_disconnect(self, client, userdata, rc, properties=None):
+    def on_mqtt_disconnect(self, client, userdata, rc, *args):
+        """Callback เมื่อ MQTT disconnect (MQTT v2 compatible)"""
+        self.connection_status_label.config(
+            text="Status: Disconnected", 
+            bootstyle="secondary"
+        )
+        self.ros_node.get_logger().info("MQTT Disconnected")
 
 
     def start_mqtt_subscription(self):
-        """เริ่มต้นรับค่าจาก MQTT"""
-        self.mqtt_client = mqtt.Client()
+        """เริ่มต้นรับค่าจาก MQTT โดยใช้ค่าจาก UI"""
+        broker, port = self.get_mqtt_config()
+        
+        # ✅ ใช้ MQTT Client v2 พร้อม fallback
+        try:
+            self.mqtt_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+            self.ros_node.get_logger().info("Using MQTT Client v2")
+        except (AttributeError, NameError):
+            # Fallback สำหรับ MQTT version เก่า
+            self.mqtt_client = mqtt.Client()
+            self.ros_node.get_logger().info("Using MQTT Client v1 (fallback)")
+            
         self.mqtt_client.on_connect = self.on_mqtt_connect
         self.mqtt_client.on_message = self.on_mqtt_message
+        self.mqtt_client.on_disconnect = self.on_mqtt_disconnect
 
         try:
-            self.mqtt_client.connect(BROKER, PORT, 60)
+            self.mqtt_client.connect(broker, port, 60)
             self.mqtt_client.subscribe(f"{self.robot_name}/pose")
             self.mqtt_client.subscribe(f"{self.robot_name}/angles")
             self.mqtt_client.loop_start()
-            self.ros_node.get_logger().info(f"Subscribed to MQTT topics for {self.robot_name}")
+            
+            self.ros_node.get_logger().info(f"Connecting to MQTT Broker: {broker}:{port}")
+            
         except Exception as e:
+            self.connection_status_label.config(
+                text=f"❌ Failed: {str(e)[:15]}...", 
+                bootstyle="danger"
+            )
             self.ros_node.get_logger().error(f"MQTT Connection Failed: {e}")
 
+    # แก้ไข stop_mqtt_subscription() ให้อัปเดต Status:
     def stop_mqtt_subscription(self):
-        """หยุดการรับค่าจาก MQTT"""
         if self.mqtt_client:
-            self.mqtt_client.loop_stop()
-            self.mqtt_client.disconnect()
-            self.ros_node.get_logger().info("MQTT Disconnected")
+            try:
+                self.mqtt_client.loop_stop()
+                self.mqtt_client.disconnect()
+            except Exception as e:
+                self.ros_node.get_logger().warning(f"Error stopping MQTT: {e}")
+            finally:
+                if hasattr(self, 'connection_status_label'):
+                    self.connection_status_label.config(text="Status: Disconnected", bootstyle="secondary")
+                self.ros_node.get_logger().info("MQTT Disconnected")
 
-    def on_mqtt_connect(self, client, userdata, flags, rc):
-        """Callback เมื่อเชื่อมต่อกับ MQTT Broker"""
-        if rc == 0:
-            self.ros_node.get_logger().info("Connected to MQTT Broker")
+    # แก้ไข toggle_mqtt() ให้ใช้ค่าจาก UI:
+    def toggle_mqtt(self):
+        """เปิด-ปิด MQTT subscription โดยใช้ค่าจาก UI"""
+        self.mqtt_toggle_state = not self.mqtt_toggle_state
+
+        if self.mqtt_toggle_state:
+            # ✅ ตรวจสอบค่า broker และ port ก่อนเชื่อมต่อ
+            broker, port = self.get_mqtt_config()
+            
+            self.mqtt_toggle_label.config(text="MQTT: ON")
+            self.mqtt_toggle_button.config(text="Disable MQTT", bootstyle="danger")
+            self.start_mqtt_subscription()
+            # ✅ เพิ่มข้อมูล broker ใน log
+            self.ros_node.get_logger().info(f"MQTT Subscription: ENABLED (Broker: {broker}:{port})")
+
         else:
-            self.ros_node.get_logger().error(f"Failed to connect, return code {rc}")
+            self.mqtt_toggle_label.config(text="MQTT: OFF")
+            self.mqtt_toggle_button.config(text="Enable MQTT", bootstyle="success")
+            self.stop_mqtt_subscription()
+            self.ros_node.get_logger().info("MQTT Subscription: DISABLED")
+    def on_test_connect(self, client, userdata, flags, rc, *args):
+        """Callback สำหรับการทดสอบการเชื่อมต่อ (MQTT v2 compatible)"""
+        if rc == 0:
+            self.connection_status_label.config(text="✅ Connection Successful!", bootstyle="success")
+            self.ros_node.get_logger().info("MQTT Test Connection: SUCCESS")
+        else:
+            self.connection_status_label.config(text=f"❌ Connection Failed (Code: {rc})", bootstyle="danger")
+            self.ros_node.get_logger().error(f"MQTT Test Connection Failed with code: {rc}")
+    def on_test_disconnect(self, client, userdata, rc, *args):
+        """Callback เมื่อการทดสอบเสร็จสิ้น (MQTT v2 compatible)"""
+        self.ros_node.get_logger().info("MQTT Test Connection: Disconnected")
 
-    def on_mqtt_message(self, client, userdata, msg):
+
+    def on_mqtt_message(self, client, userdata, msg, *args):
+        """ประมวลผลข้อความที่ได้รับจาก MQTT (MQTT v2 compatible)"""
         try:
             data = msg.payload.decode()
             topic = msg.topic
 
-            self.ros_node.get_logger().info(f"[MQTT] Received message on topic: {topic}")
-            self.ros_node.get_logger().info(f"[MQTT] Raw payload: {data}")
-
-            self.mqtt_data_label.config(text=f"MQTT Data: {topic} -> {data}")
+            self.ros_node.get_logger().info(f"[MQTT] Received: {topic} -> {data}")
+            
+            # อัปเดต MQTT Data Label
+            if hasattr(self, 'mqtt_data_label'):
+                short_data = data[:30] + "..." if len(data) > 30 else data
+                self.mqtt_data_label.config(text=f"MQTT: {topic.split('/')[-1]} -> {short_data}")
 
             if topic.endswith("/pose"):
-                self.ros_node.get_logger().info("[STEP 1] Pose topic matched")
-
-                try:
-                    x, y, z, roll, pitch, yaw = map(float, data.split(","))
-                    self.ros_node.get_logger().info(f"[STEP 2] Parsed pose: X={x}, Y={y}, Z={z}, Roll={roll}, Pitch={pitch}, Yaw={yaw}")
-                except Exception as e:
-                    self.ros_node.get_logger().error(f"[ERROR] Failed to parse pose: {e}")
-                    return
-
-                x_mm, y_mm, z_mm = x, y, z
-                roll_rad, pitch_rad, yaw_rad = math.radians(roll), math.radians(pitch), math.radians(yaw)
-
-                self.ros_node.get_logger().info("[STEP 3] Converted to radians")
-                
-                if self.kinematics is None:
-                    self.ros_node.get_logger().error("[ERROR] self.kinematics is None! IK module not initialized.")
-                    return
-
-                self.ros_node.get_logger().info("[STEP 4] Calling compute_ink()")
-
-                joint_angles = self.kinematics.compute_ink(
-                    [x / 1000, y / 1000, z / 1000],
-                    [roll_rad, pitch_rad, yaw_rad]
-                )
-
-                if joint_angles:
-                    self.ros_node.get_logger().info(f"[STEP 5] IK result: {joint_angles}")
-                    joint_angles_deg = [math.degrees(angle) for angle in joint_angles]
-                    self.ros_node.get_logger().info(f"[STEP 6] Joint Angles (deg): {joint_angles_deg}")
-                    self.update_joint_angles(joint_angles_deg)
-                    self.root.update_idletasks()
-                    self.send_joint_angles()
-                else:
-                    self.ros_node.get_logger().error("[ERROR] IK returned None")
-
-                # ✅ Update UI
-                self.update_cartesian_values(x_mm, y_mm, z_mm, roll, pitch, yaw)
-
+                self.process_pose_data(data)
             elif topic.endswith("/angles"):
-                self.ros_node.get_logger().info("[STEP A1] Angles topic matched")
-
-                try:
-                    joint_angles_deg = list(map(float, data.split(",")))
-                    joint_angles_rad = [math.radians(angle) for angle in joint_angles_deg]
-                    self.ros_node.get_logger().info(f"[STEP A2] Parsed angles (deg): {joint_angles_deg}")
-                except Exception as e:
-                    self.ros_node.get_logger().error(f"[ERROR] Failed to parse joint angles: {e}")
-                    return
-
-            # 🔄 Forward Kinematics
-                if self.kinematics:
-                    try:
-                        x, y, z, roll, pitch, yaw = self.kinematics.compute_fk(joint_angles_rad)
-                        x_mm, y_mm, z_mm = x * 1000, y * 1000, z * 1000
-                        roll_deg, pitch_deg, yaw_deg = math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
-    
-                        self.ros_node.get_logger().info(f"[STEP A3] FK Computed Pose: X={x_mm}mm, Y={y_mm}mm, Z={z_mm}mm, Roll={roll_deg}°, Pitch={pitch_deg}°, Yaw={yaw_deg}°")
-                        self.update_cartesian_values(x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg)
-                    except Exception as e:
-                        self.ros_node.get_logger().error(f"[ERROR] FK computation failed: {e}")
-
-                self.update_joint_angles(joint_angles_deg, update_ui=True)  
-                self.root.update_idletasks()
-                self.send_joint_angles()
+                self.process_angles_data(data)
 
         except Exception as e:
-            self.ros_node.get_logger().error(f"[EXCEPTION] on_mqtt_message failed: {e}")
-            import traceback
-            self.ros_node.get_logger().error(traceback.format_exc())
+            self.ros_node.get_logger().error(f"[MQTT] Message processing failed: {e}")
+    def process_pose_data(self, data):
+        """ประมวลผลข้อมูล Pose จาก MQTT"""
+        try:
+            x, y, z, roll, pitch, yaw = map(float, data.split(","))
+            self.ros_node.get_logger().info(f"[POSE] X={x}, Y={y}, Z={z}, R={roll}, P={pitch}, Y={yaw}")
+            
+            if self.kinematics is None:
+                self.ros_node.get_logger().error("[ERROR] Kinematics not initialized")
+                return
 
+            # Convert to meters and radians
+            x_m, y_m, z_m = x / 1000, y / 1000, z / 1000
+            roll_rad = math.radians(roll)
+            pitch_rad = math.radians(pitch)
+            yaw_rad = math.radians(yaw)
+
+            # Compute inverse kinematics
+            joint_angles = self.kinematics.compute_ink([x_m, y_m, z_m], [roll_rad, pitch_rad, yaw_rad])
+            
+            if joint_angles:
+                joint_angles_deg = [math.degrees(angle) for angle in joint_angles]
+                self.update_joint_angles(joint_angles_deg)
+                self.send_joint_angles()
+            
+            # Update Cartesian display
+            self.update_cartesian_values(x, y, z, roll, pitch, yaw)
+            
+        except Exception as e:
+            self.ros_node.get_logger().error(f"[ERROR] Pose processing failed: {e}")
+
+    def process_angles_data(self, data):
+        """ประมวลผลข้อมูล Joint Angles จาก MQTT"""
+        try:
+            joint_angles_deg = list(map(float, data.split(",")))
+            self.ros_node.get_logger().info(f"[ANGLES] Received: {joint_angles_deg}")
+            
+            if self.kinematics:
+                # Convert to radians for forward kinematics
+                joint_angles_rad = [math.radians(angle) for angle in joint_angles_deg]
+                
+                # Compute forward kinematics
+                try:
+                    x, y, z, roll, pitch, yaw = self.kinematics.compute_fk(joint_angles_rad)
+                    x_mm, y_mm, z_mm = x * 1000, y * 1000, z * 1000
+                    roll_deg = math.degrees(roll)
+                    pitch_deg = math.degrees(pitch)
+                    yaw_deg = math.degrees(yaw)
+                    
+                    self.update_cartesian_values(x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg)
+                except Exception as e:
+                    self.ros_node.get_logger().error(f"[ERROR] Forward kinematics failed: {e}")
+
+            self.update_joint_angles(joint_angles_deg, update_ui=True)
+            self.send_joint_angles()
+            
+        except Exception as e:
+            self.ros_node.get_logger().error(f"[ERROR] Angles processing failed: {e}")
     def update_joint_angles(self, angles, update_ui=True):
         """อัปเดตค่า Joint Angle UI และส่งออกไปทันที"""
         self.ros_node.get_logger().info(f"📥 Received Raw Joint Angles: {angles}")
