@@ -1,13 +1,26 @@
 # Use the base image that already contains ROS 2 Humble and Ubuntu 22.04
 FROM tiryoh/ros2-desktop-vnc
 
-# Install additional dependencies for robotic arm simulation
-RUN apt-get update && apt-get install -y \
+# Disable problematic repository temporarily and install basic packages first
+RUN mv /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/ros2.list.bak 2>/dev/null || true && \
+    apt-get update && apt-get install -y \
     python3-argcomplete \
     python3-colcon-common-extensions \
     libboost-system-dev \
     build-essential \
     libudev-dev \
+    curl \
+    gnupg \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# Fix ROS 2 repository with proper GPG key
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" | tee /etc/apt/sources.list.d/ros2-new.list > /dev/null && \
+    apt-get update
+
+# Now install ROS 2 packages
+RUN apt-get install -y \
     ros-humble-moveit \
     ros-humble-moveit-resources-prbt-moveit-config \
     ros-humble-moveit-visual-tools \
